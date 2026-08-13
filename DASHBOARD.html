@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - Rondas Mega</title>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <style>
+        :root { --primary: #003264; --bg: #f4f6f9; --surface: #ffffff; --text: #212529; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: var(--bg); margin: 0; padding: 0; color: var(--text); }
+        
+        /* Navbar moderna */
+        .navbar { background: var(--primary); color: white; padding: 15px 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+        .logo-img { height: 32px; filter: brightness(0) invert(1); } 
+        .navbar h1 { margin: 0; font-size: 1.4rem; font-weight: 600; letter-spacing: 0.5px; }
+        .badge-live { background: #28a745; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; animation: pulse 2s infinite; margin-left: auto; }
+        .btn-clear { background: #dc3545; color: white; border: 1px solid #c82333; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9rem; transition: 0.2s; }
+        .btn-clear:hover { background: #c82333; }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+        
+        /* Tarjeta de la tabla */
+        .card { background: var(--surface); border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); border: 1px solid #e9ecef; overflow: hidden; }
+        
+        /* Contenedor responsivo para móviles */
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        
+        table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+        th, td { padding: 18px 24px; text-align: left; border-bottom: 1px solid #f1f3f5; }
+        th { background-color: #f8f9fa; font-weight: 600; color: #6c757d; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; }
+        tr:hover { background-color: #f8f9fa; }
+        td { font-size: 0.95rem; }
+        
+        /* Estilos de botones GPS */
+        .ok-gps { color: #0f5132; background-color: #d1e7dd; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; display: inline-block; transition: all 0.2s; border: 1px solid #badbcc; text-decoration: none; }
+        .ok-gps:hover { background-color: #badbcc; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(15, 81, 50, 0.15); }
+        .alert-gps { color: #842029; background-color: #f8d7da; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; display: inline-block; border: 1px solid #f5c2c7; }
+        
+        /* Indicador de carga */
+        .loading { text-align: center; padding: 40px; color: #6c757d; font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <img src="Mega_Chile_2020.png" alt="Mega" class="logo-img">
+        <h1>Centro de Seguridad</h1>
+        <span class="badge-live">EN VIVO</span>
+        <button class="btn-clear" onclick="limpiarRegistros()">🗑️ Limpiar</button>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha y Hora</th>
+                            <th>Guardia Asignado</th>
+                            <th>Zona Revisada</th>
+                            <th>Ubicación</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-body">
+                        <tr><td colspan="4"><div class="loading">Sincronizando registros...</div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAUsyzn-O9JASdVTAEnZsHfayaIsNzyf8U",
+            authDomain: "seguridad-de-mega.firebaseapp.com",
+            databaseURL: "https://seguridad-de-mega-default-rtdb.firebaseio.com",
+            projectId: "seguridad-de-mega",
+            storageBucket: "seguridad-de-mega.firebasestorage.app",
+            messagingSenderId: "727536527368",
+            appId: "1:727536527368:web:6b0a53c6027364dfe589bd"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const tbody = document.getElementById('tabla-body');
+
+        // FUNCIÓN PARA LIMPIAR LA BASE DE DATOS
+        function limpiarRegistros() {
+            const pin = prompt("🔒 ACCESO RESTRINGIDO\nIngrese el PIN de jefatura para borrar todo el historial:");
+            
+            // PIN ACTUALIZADO A 1404
+            if (pin === "1404") { 
+                if(confirm("⚠️ ¿Estás COMPLETAMENTE SEGURO?\nEsto borrará todos los registros de las rondas de forma permanente y no se pueden recuperar.")) {
+                    db.ref('registros_rondas').remove()
+                    .then(() => {
+                        alert("✅ Base de datos limpiada correctamente.");
+                    })
+                    .catch((error) => {
+                        alert("❌ Error al limpiar la base de datos: " + error);
+                    });
+                }
+            } else if (pin !== null) {
+                alert("❌ PIN Incorrecto. Operación cancelada.");
+            }
+        }
+
+        db.ref('registros_rondas').orderByChild('timestamp').limitToLast(100).on('value', (snapshot) => {
+            tbody.innerHTML = ''; 
+            
+            const registros = [];
+            snapshot.forEach((childSnapshot) => {
+                registros.push(childSnapshot.val());
+            });
+            
+            registros.reverse(); 
+
+            if(registros.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4"><div class="loading">No hay rondas registradas. El panel está limpio.</div></td></tr>';
+                return;
+            }
+
+            registros.forEach((registro) => {
+                const tr = document.createElement('tr');
+                
+                const dateObj = new Date(registro.timestamp);
+                const fechaFormat = dateObj.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
+                const horaFormat = dateObj.toLocaleTimeString('es-CL', { hour: '2-digit', minute:'2-digit', second:'2-digit' });
+                
+                const gpsTag = (registro.latitud && registro.longitud) 
+                    ? `<a href="https://www.google.com/maps?q=${registro.latitud},${registro.longitud}" target="_blank" class="ok-gps">📍 Ver Mapa</a>` 
+                    : `<span class="alert-gps">⚠️ GPS Bloqueado</span>`;
+
+                tr.innerHTML = `
+                    <td><b>${horaFormat}</b> <span style="color:#6c757d; font-size:0.85rem; margin-left:8px;">${fechaFormat}</span></td>
+                    <td><span style="background:#e9ecef; padding:4px 10px; border-radius:6px; font-size:0.9rem;">${registro.guardia_id}</span></td>
+                    <td><strong>${registro.zona_qr}</strong></td>
+                    <td>${gpsTag}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        });
+    </script>
+</body>
+</html>
