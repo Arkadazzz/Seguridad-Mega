@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - Rondas Mega</title>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <style>
+        :root { --primary: #003264; --bg: #f4f6f9; --surface: #ffffff; --text: #212529; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: var(--bg); margin: 0; padding: 0; color: var(--text); }
+        
+        /* Navbar moderna */
+        .navbar { background: var(--primary); color: white; padding: 15px 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+        .logo-img { height: 32px; filter: brightness(0) invert(1); } 
+        .navbar h1 { margin: 0; font-size: 1.4rem; font-weight: 600; letter-spacing: 0.5px; }
+        .badge-live { background: #28a745; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; animation: pulse 2s infinite; margin-left: auto; }
+        .btn-clear { background: #dc3545; color: white; border: 1px solid #c82333; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9rem; transition: 0.2s; }
+        .btn-clear:hover { background: #c82333; }
+        .btn-logout { background: transparent; color: white; border: 1px solid white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9rem; transition: 0.2s; margin-left: 10px; }
+        .btn-logout:hover { background: rgba(255,255,255,0.1); }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+        
+        /* Tarjeta */
+        .card { background: var(--surface); border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); border: 1px solid #e9ecef; overflow: hidden; }
+        
+        /* Login PIN UI */
+        #login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+        .login-box { max-width: 350px; width: 100%; padding: 40px 30px; text-align: center; }
+        .login-box img { filter: none; height: 50px; margin-bottom: 20px; } /* Logo normal (azul) para el login */
+        .login-box input { width: 100%; padding: 15px; margin-bottom: 20px; border: 2px solid #ced4da; border-radius: 8px; box-sizing: border-box; font-size: 2rem; text-align: center; letter-spacing: 8px; font-weight: bold; color: var(--primary); }
+        .login-box input:focus { outline: none; border-color: var(--primary); }
+        .login-box button { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .login-box button:hover { background: #002244; transform: translateY(-2px); }
+        #login-error { color: #dc3545; font-size: 0.95rem; margin-top: 15px; display: none; font-weight: 600; }
+
+        /* Contenedor responsivo para móviles */
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        
+        table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+        th, td { padding: 18px 24px; text-align: left; border-bottom: 1px solid #f1f3f5; }
+        th { background-color: #f8f9fa; font-weight: 600; color: #6c757d; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; }
+        tr:hover { background-color: #f8f9fa; }
+        td { font-size: 0.95rem; }
+        
+        /* Estilos de botones GPS */
+        .ok-gps { color: #0f5132; background-color: #d1e7dd; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; display: inline-block; transition: all 0.2s; border: 1px solid #badbcc; text-decoration: none; }
+        .ok-gps:hover { background-color: #badbcc; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(15, 81, 50, 0.15); }
+        .alert-gps { color: #842029; background-color: #f8d7da; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; display: inline-block; border: 1px solid #f5c2c7; }
+        
+        .loading { text-align: center; padding: 40px; color: #6c757d; font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+
+    <!-- PANTALLA DE ACCESO POR PIN -->
+    <div id="login-screen">
+        <div class="card login-box">
+            <img src="Mega_Chile_2020.png" alt="Mega">
+            <h2 style="margin-top: 0; color: var(--primary);">Jefatura Seguridad</h2>
+            <p style="color: #6c757d; margin-bottom: 25px; font-size: 0.95rem;">Ingrese su PIN de 4 dígitos</p>
+            
+            <input type="password" id="pin-input" placeholder="••••" maxlength="4" autocomplete="off">
+            <button onclick="verificarPIN()">Desbloquear Panel</button>
+            <p id="login-error">❌ PIN incorrecto. Intente nuevamente.</p>
+        </div>
+    </div>
+
+    <!-- PANTALLA DEL DASHBOARD (Oculta por defecto) -->
+    <div id="dashboard-screen" style="display: none;">
+        <div class="navbar">
+            <img src="Mega_Chile_2020.png" alt="Mega" class="logo-img">
+            <h1>Centro de Seguridad</h1>
+            <span class="badge-live">EN VIVO</span>
+            <button class="btn-clear" onclick="limpiarRegistros()">🗑️ Limpiar</button>
+            <button class="btn-logout" onclick="cerrarSesion()">🔒 Bloquear</button>
+        </div>
+
+        <div class="container">
+            <div class="card">
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha y Hora</th>
+                                <th>Guardia Asignado</th>
+                                <th>Zona Revisada</th>
+                                <th>Ubicación</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-body">
+                            <tr><td colspan="4"><div class="loading">Sincronizando registros...</div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAUsyzn-O9JASdVTAEnZsHfayaIsNzyf8U",
+            authDomain: "seguridad-de-mega.firebaseapp.com",
+            databaseURL: "https://seguridad-de-mega-default-rtdb.firebaseio.com",
+            projectId: "seguridad-de-mega",
+            storageBucket: "seguridad-de-mega.firebasestorage.app",
+            messagingSenderId: "727536527368",
+            appId: "1:727536527368:web:6b0a53c6027364dfe589bd"
+        };
+
+        // Permite presionar la tecla "Enter" para ingresar el PIN rápido
+        document.getElementById('pin-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                verificarPIN();
+            }
+        });
+
+        // Revisar si ya puso el PIN en esta pestaña
+        window.onload = () => {
+            if (sessionStorage.getItem('mega_dashboard_auth') === 'true') {
+                mostrarDashboard();
+            } else {
+                // Pone el cursor automáticamente en la caja del PIN al abrir
+                document.getElementById('pin-input').focus();
+            }
+        };
+
+        function verificarPIN() {
+            const pin = document.getElementById('pin-input').value;
+            const errorMsg = document.getElementById('login-error');
+            
+            // EL PIN SECRETO ES 1404
+            if (pin === "1404") {
+                sessionStorage.setItem('mega_dashboard_auth', 'true');
+                errorMsg.style.display = 'none';
+                mostrarDashboard();
+            } else {
+                errorMsg.style.display = 'block';
+                document.getElementById('pin-input').value = ''; // Limpia la caja
+                document.getElementById('pin-input').focus(); // Vuelve a poner el cursor
+            }
+        }
+
+        function mostrarDashboard() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('dashboard-screen').style.display = 'block';
+            
+            // Solo iniciamos Firebase y cargamos datos SI EL PIN FUE CORRECTO
+            if (firebase.apps.length === 0) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            cargarDatos();
+        }
+
+        function cerrarSesion() {
+            sessionStorage.removeItem('mega_dashboard_auth');
+            location.reload(); // Recarga la página para volver a pedir el PIN
+        }
+
+        // --- SISTEMA DE DATOS Y LIMPIEZA ---
+        function limpiarRegistros() {
+            const pin = prompt("🔒 ACCESO RESTRINGIDO\nIngrese el PIN de jefatura para confirmar el borrado de historial:");
+            
+            if (pin === "1404") { 
+                if(confirm("⚠️ ¿Estás COMPLETAMENTE SEGURO?\nEsto borrará todos los registros de las rondas de forma permanente y no se pueden recuperar.")) {
+                    firebase.database().ref('registros_rondas').remove()
+                    .then(() => {
+                        alert("✅ Base de datos limpiada correctamente.");
+                    })
+                    .catch((error) => {
+                        alert("❌ Error al limpiar la base de datos: " + error);
+                    });
+                }
+            } else if (pin !== null) {
+                alert("❌ PIN Incorrecto. Operación cancelada.");
+            }
+        }
+
+        function cargarDatos() {
+            const db = firebase.database();
+            const tbody = document.getElementById('tabla-body');
+            
+            db.ref('registros_rondas').orderByChild('timestamp').limitToLast(100).on('value', (snapshot) => {
+                tbody.innerHTML = ''; 
+                
+                const registros = [];
+                snapshot.forEach((childSnapshot) => {
+                    registros.push(childSnapshot.val());
+                });
+                
+                registros.reverse(); 
+
+                if(registros.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4"><div class="loading">No hay rondas registradas. El panel está limpio.</div></td></tr>';
+                    return;
+                }
+
+                registros.forEach((registro) => {
+                    const tr = document.createElement('tr');
+                    
+                    const dateObj = new Date(registro.timestamp);
+                    const fechaFormat = dateObj.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
+                    const horaFormat = dateObj.toLocaleTimeString('es-CL', { hour: '2-digit', minute:'2-digit', second:'2-digit' });
+                    
+                    const gpsTag = (registro.latitud && registro.longitud) 
+                        ? `<a href="https://www.google.com/maps?q=${registro.latitud},${registro.longitud}" target="_blank" class="ok-gps">📍 Ver Mapa</a>` 
+                        : `<span class="alert-gps">⚠️ GPS Bloqueado</span>`;
+
+                    tr.innerHTML = `
+                        <td><b>${horaFormat}</b> <span style="color:#6c757d; font-size:0.85rem; margin-left:8px;">${fechaFormat}</span></td>
+                        <td><span style="background:#e9ecef; padding:4px 10px; border-radius:6px; font-size:0.9rem;">${registro.guardia_id}</span></td>
+                        <td><strong>${registro.zona_qr}</strong></td>
+                        <td>${gpsTag}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
